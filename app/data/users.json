@@ -1,0 +1,23 @@
+[
+  {
+    "username": "BrainAgyeman",
+    "full_name": "Brain Agyeman",
+    "password": "0211",
+    "role": "admin",
+    "is_active": true
+  },
+  {
+    "username": "PaulaRosa",
+    "full_name": "Paula Rosa",
+    "password": "0212",
+    "role": "admin",
+    "is_active": true
+  },
+  {
+    "username": "JayeshKumar",
+    "full_name": "Jayesh Kumar",
+    "password": "0213",
+    "role": "admin",
+    "is_active": true
+  }
+]

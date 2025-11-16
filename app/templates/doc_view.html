@@ -1,0 +1,18 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>{{ doc.title }}</h1>
+
+<p>
+  <strong>Departamento:</strong> {{ doc.department }}<br>
+  <strong>Creado por:</strong> {{ doc.created_by }}<br>
+  <strong>Fecha:</strong> {{ doc.created_at }}
+</p>
+
+<button onclick="window.print()" style="margin-top:0.5rem;">Imprimir este documento</button>
+
+<hr style="margin:1rem 0;">
+
+<div>
+  {{ doc.content | replace('\n', '<br>') | safe }}
+</div>
+{% endblock %}

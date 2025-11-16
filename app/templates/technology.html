@@ -1,0 +1,393 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>Departamento Tecnológico</h1>
+<button onclick="window.print()" style="float:right;"Imprimir</button>
+
+<p>Aquí gestionas Administración de sistemas, Soporte, Desarrollo, Seguridad e Innovación.</p>
+
+<p style="margin-top:0.5rem;">
+  <strong>KPIs rápidos:</strong>
+  Tickets abiertos: <strong>{{ open_tickets }}</strong> |
+  Incidentes abiertos: <strong>{{ open_incidents }}</strong> |
+  Proyectos activos: <strong>{{ active_projects }}</strong>
+</p>
+
+<!-- ================== Administración de sistemas ================== -->
+<section style="margin-top:1.5rem;">
+  <h2>Administración de sistemas</h2>
+  <form method="post" action="/technology/systems/create">
+    <div>
+      <label>Nombre del sistema</label>
+      <input type="text" name="name" placeholder="Servidor producción" required>
+    </div>
+    <div style="margin-top:0.5rem;">
+      <label>Categoría</label>
+      <input type="text" name="category" placeholder="Servidor, red, base de datos, VPN..." required>
+    </div>
+    <div style="margin-top:0.5rem;">
+      <label>Estado</label>
+      <select name="status">
+        <option value="operativo">Operativo</option>
+        <option value="degradado">Degradado</option>
+        <option value="caído">Caído</option>
+      </select>
+    </div>
+    <div style="margin-top:0.5rem;">
+      <label>Criticidad</label>
+      <select name="criticality">
+        <option value="baja">Baja</option>
+        <option value="media" selected>Media</option>
+        <option value="alta">Alta</option>
+      </select>
+    </div>
+    <div style="margin-top:0.5rem;">
+      <label>Responsable</label>
+      <input type="text" name="owner" placeholder="Admin sistemas / proveedor">
+    </div>
+    <div style="margin-top:0.5rem;">
+      <label>Notas</label>
+      <input type="text" name="notes">
+    </div>
+    <button type="submit" style="margin-top:0.8rem;">Registrar sistema</button>
+  </form>
+
+  <h3 style="margin-top:1rem;">Sistemas registrados</h3>
+  <table>
+    <tr>
+      <th>Nombre</th>
+      <th>Categoría</th>
+      <th>Estado</th>
+      <th>Criticidad</th>
+      <th>Responsable</th>
+      <th>Notas</th>
+      <th>Acciones</th>
+    </tr>
+    {% for s in systems %}
+      <tr>
+        <td>{{ s.name }}</td>
+        <td>{{ s.category }}</td>
+        <td>{{ s.status }}</td>
+        <td>{{ s.criticality }}</td>
+        <td>{{ s.owner or '' }}</td>
+        <td>{{ s.notes or '' }}</td>
+        <td>
+          <form method="post"
+                action="/technology/systems/{{ s.id }}/delete"
+                onsubmit="return confirm('¿Eliminar este sistema?');">
+            <button type="submit">Borrar</button>
+          </form>
+        </td>
+      </tr>
+    {% endfor %}
+    {% if not systems %}
+      <tr><td colspan="7">Todavía no hay sistemas registrados.</td></tr>
+    {% endif %}
+  </table>
+</section>
+
+<!-- ================== Soporte Técnico ================== -->
+<section style="margin-top:1.5rem;">
+  <h2>Soporte técnico</h2>
+  <form method="post" action="/technology/tickets/create">
+    <div>
+      <label>Título del ticket</label>
+      <input type="text" name="title" placeholder="No puedo acceder al correo" required>
+    </div>
+    <div style="margin-top:0.5rem;">
+      <label>Descripción</label>
+      <input type="text" name="description">
+    </div>
+    <div style="margin-top:0.5rem;">
+      <label>Prioridad</label>
+      <select name="priority">
+        <option value="baja">Baja</option>
+        <option value="media" selected>Media</option>
+        <option value="alta">Alta</option>
+        <option value="crítica">Crítica</option>
+      </select>
+    </div>
+    <div style="margin-top:0.5rem;">
+      <label>Categoría</label>
+      <input type="text" name="category" placeholder="Hardware, software, acceso...">
+    </div>
+    <div style="margin-top:0.5rem;">
+      <label>Asignado a</label>
+      <input type="text" name="assigned_to" placeholder="Técnico / equipo">
+    </div>
+    <button type="submit" style="margin-top:0.8rem;">Crear ticket</button>
+  </form>
+
+  <h3 style="margin-top:1rem;">Tickets</h3>
+  <table>
+    <tr>
+      <th>ID</th>
+      <th>Título</th>
+      <th>Estado</th>
+      <th>Prioridad</th>
+      <th>Categoría</th>
+      <th>Solicitante</th>
+      <th>Asignado a</th>
+      <th>Creado</th>
+      <th>Acciones</th>
+    </tr>
+    {% for t in tickets %}
+      <tr>
+        <td>{{ t.id }}</td>
+        <td>{{ t.title }}</td>
+        <td>{{ t.status }}</td>
+        <td>{{ t.priority }}</td>
+        <td>{{ t.category or '' }}</td>
+        <td>{{ t.requester }}</td>
+        <td>{{ t.assigned_to or '' }}</td>
+        <td>{{ t.created_at }}</td>
+        <td>
+          <form method="post" action="/technology/tickets/{{ t.id }}/change_status" style="display:inline;">
+            <select name="new_status">
+              <option value="abierto" {% if t.status == 'abierto' %}selected{% endif %}>Abierto</option>
+              <option value="en progreso" {% if t.status == 'en progreso' %}selected{% endif %}>En progreso</option>
+              <option value="resuelto" {% if t.status == 'resuelto' %}selected{% endif %}>Resuelto</option>
+              <option value="cerrado" {% if t.status == 'cerrado' %}selected{% endif %}>Cerrado</option>
+            </select>
+            <button type="submit">Cambiar</button>
+          </form>
+          <form method="post"
+                action="/technology/tickets/{{ t.id }}/delete"
+                style="display:inline;"
+                onsubmit="return confirm('¿Eliminar este ticket?');">
+            <button type="submit">Borrar</button>
+          </form>
+        </td>
+      </tr>
+    {% endfor %}
+    {% if not tickets %}
+      <tr><td colspan="9">No hay tickets de soporte.</td></tr>
+    {% endif %}
+  </table>
+</section>
+
+<!-- ================== Desarrollo de software ================== -->
+<section style="margin-top:1.5rem;">
+  <h2>Desarrollo de software</h2>
+  <form method="post" action="/technology/projects/create">
+    <div>
+      <label>Nombre del proyecto</label>
+      <input type="text" name="name" placeholder="Plataforma CareWave v2" required>
+    </div>
+    <div style="margin-top:0.5rem;">
+      <label>Descripción</label>
+      <input type="text" name="description">
+    </div>
+    <div style="margin-top:0.5rem;">
+      <label>Estado</label>
+      <select name="status">
+        <option value="en diseño">En diseño</option>
+        <option value="en desarrollo">En desarrollo</option>
+        <option value="en prueba">En prueba</option>
+        <option value="en producción">En producción</option>
+        <option value="cerrado">Cerrado</option>
+      </select>
+    </div>
+    <div style="margin-top:0.5rem;">
+      <label>Repositorio (URL)</label>
+      <input type="text" name="repo_url" placeholder="https://github.com/...">
+    </div>
+    <div style="margin-top:0.5rem;">
+      <label>Owner / Responsable</label>
+      <input type="text" name="owner">
+    </div>
+    <div style="margin-top:0.5rem;">
+      <label>Fecha inicio</label>
+      <input type="date" name="start_date_str">
+    </div>
+    <div style="margin-top:0.5rem;">
+      <label>Fecha objetivo</label>
+      <input type="date" name="due_date_str">
+    </div>
+    <button type="submit" style="margin-top:0.8rem;">Crear proyecto</button>
+  </form>
+
+  <h3 style="margin-top:1rem;">Proyectos</h3>
+  <table>
+    <tr>
+      <th>Nombre</th>
+      <th>Estado</th>
+      <th>Owner</th>
+      <th>Repositorio</th>
+      <th>Inicio</th>
+      <th>Objetivo</th>
+      <th>Acciones</th>
+    </tr>
+    {% for p in projects %}
+      <tr>
+        <td>{{ p.name }}</td>
+        <td>{{ p.status }}</td>
+        <td>{{ p.owner or '' }}</td>
+        <td>{{ p.repo_url or '' }}</td>
+        <td>{{ p.start_date or '' }}</td>
+        <td>{{ p.due_date or '' }}</td>
+        <td>
+          <form method="post"
+                action="/technology/projects/{{ p.id }}/delete"
+                onsubmit="return confirm('¿Eliminar este proyecto?');">
+            <button type="submit">Borrar</button>
+          </form>
+        </td>
+      </tr>
+    {% endfor %}
+    {% if not projects %}
+      <tr><td colspan="7">No hay proyectos registrados.</td></tr>
+    {% endif %}
+  </table>
+</section>
+
+<!-- ================== Seguridad informática ================== -->
+<section style="margin-top:1.5rem;">
+  <h2>Seguridad informática</h2>
+  <form method="post" action="/technology/incidents/create">
+    <div>
+      <label>Título del incidente</label>
+      <input type="text" name="title" placeholder="Intento de acceso no autorizado" required>
+    </div>
+    <div style="margin-top:0.5rem;">
+      <label>Severidad</label>
+      <select name="severity">
+        <option value="baja">Baja</option>
+        <option value="media" selected>Media</option>
+        <option value="alta">Alta</option>
+        <option value="crítica">Crítica</option>
+      </select>
+    </div>
+    <div style="margin-top:0.5rem;">
+      <label>Estado</label>
+      <select name="status">
+        <option value="abierto">Abierto</option>
+        <option value="investigando">Investigando</option>
+        <option value="mitigado">Mitigado</option>
+        <option value="cerrado">Cerrado</option>
+      </select>
+    </div>
+    <div style="margin-top:0.5rem;">
+      <label>Sistema afectado</label>
+      <input type="text" name="impacted_system" placeholder="Servidor X, VPN, etc.">
+    </div>
+    <div style="margin-top:0.5rem;">
+      <label>Descripción</label>
+      <input type="text" name="description">
+    </div>
+    <button type="submit" style="margin-top:0.8rem;">Registrar incidente</button>
+  </form>
+
+  <h3 style="margin-top:1rem;">Incidentes</h3>
+  <table>
+    <tr>
+      <th>ID</th>
+      <th>Título</th>
+      <th>Severidad</th>
+      <th>Estado</th>
+      <th>Sistema</th>
+      <th>Reportado por</th>
+      <th>Detectado</th>
+      <th>Acciones</th>
+    </tr>
+    {% for i in incidents %}
+      <tr>
+        <td>{{ i.id }}</td>
+        <td>{{ i.title }}</td>
+        <td>{{ i.severity }}</td>
+        <td>{{ i.status }}</td>
+        <td>{{ i.impacted_system or '' }}</td>
+        <td>{{ i.reported_by }}</td>
+        <td>{{ i.detected_at }}</td>
+        <td>
+          <form method="post" action="/technology/incidents/{{ i.id }}/change_status" style="display:inline;">
+            <select name="new_status">
+              <option value="abierto" {% if i.status == 'abierto' %}selected{% endif %}>Abierto</option>
+              <option value="investigando" {% if i.status == 'investigando' %}selected{% endif %}>Investigando</option>
+              <option value="mitigado" {% if i.status == 'mitigado' %}selected{% endif %}>Mitigado</option>
+              <option value="cerrado" {% if i.status == 'cerrado' %}selected{% endif %}>Cerrado</option>
+            </select>
+            <button type="submit">Cambiar</button>
+          </form>
+          <form method="post"
+                action="/technology/incidents/{{ i.id }}/delete"
+                style="display:inline;"
+                onsubmit="return confirm('¿Eliminar este incidente?');">
+            <button type="submit">Borrar</button>
+          </form>
+        </td>
+      </tr>
+    {% endfor %}
+    {% if not incidents %}
+      <tr><td colspan="8">No hay incidentes registrados.</td></tr>
+    {% endif %}
+  </table>
+</section>
+
+<!-- ================== Innovación & Estrategia ================== -->
+<section style="margin-top:1.5rem;">
+  <h2>Innovación &amp; estrategia</h2>
+  <form method="post" action="/technology/ideas/create">
+    <div>
+      <label>Título de la idea</label>
+      <input type="text" name="title" placeholder="Nuevo módulo de IA para CareWave" required>
+    </div>
+    <div style="margin-top:0.5rem;">
+      <label>Descripción</label>
+      <input type="text" name="description">
+    </div>
+    <div style="margin-top:0.5rem;">
+      <label>Estado</label>
+      <select name="status">
+        <option value="propuesta">Propuesta</option>
+        <option value="en análisis">En análisis</option>
+        <option value="aprobada">Aprobada</option>
+        <option value="en marcha">En marcha</option>
+        <option value="descartada">Descartada</option>
+      </select>
+    </div>
+    <div style="margin-top:0.5rem;">
+      <label>Impacto (1-10)</label>
+      <input type="number" name="impact_score" min="1" max="10">
+    </div>
+    <div style="margin-top:0.5rem;">
+      <label>Esfuerzo (1-10)</label>
+      <input type="number" name="effort_score" min="1" max="10">
+    </div>
+    <button type="submit" style="margin-top:0.8rem;">Registrar idea</button>
+  </form>
+
+  <h3 style="margin-top:1rem;">Ideas</h3>
+  <table>
+    <tr>
+      <th>Título</th>
+      <th>Estado</th>
+      <th>Impacto</th>
+      <th>Esfuerzo</th>
+      <th>Autor</th>
+      <th>Creada</th>
+      <th>Acciones</th>
+    </tr>
+    {% for idea in ideas %}
+      <tr>
+        <td>{{ idea.title }}</td>
+        <td>{{ idea.status }}</td>
+        <td>{{ idea.impact_score or '' }}</td>
+        <td>{{ idea.effort_score or '' }}</td>
+        <td>{{ idea.created_by }}</td>
+        <td>{{ idea.created_at }}</td>
+        <td>
+          <form method="post"
+                action="/technology/ideas/{{ idea.id }}/delete"
+                onsubmit="return confirm('¿Eliminar esta idea?');">
+            <button type="submit">Borrar</button>
+          </form>
+        </td>
+      </tr>
+    {% endfor %}
+    {% if not ideas %}
+      <tr><td colspan="7">No hay ideas registradas.</td></tr>
+    {% endif %}
+  </table>
+</section>
+
+{% endblock %}

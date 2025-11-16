@@ -1,0 +1,75 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>Legal &amp; Compliance</h1>
+<button onclick="window.print()" style="float:right;"Imprimir</button>
+<p>Aquí verás documentos legales listos para firmar.</p>
+
+<section style="margin-top:1rem;">
+  <h2>Crear nuevo documento</h2>
+  <form method="post" action="/legal/documents/create" enctype="multipart/form-data">
+    <label>Título del documento</label>
+    <input type="text" name="title" placeholder="Ej: NDA cliente X" required>
+
+    <label style="display:block;margin-top:0.5rem;">Adjuntar archivo (opcional)</label>
+    <input type="file" name="file">
+
+    <button type="submit" style="margin-top:0.8rem;">Crear</button>
+  </form>
+</section>
+
+<section style="margin-top:2rem;">
+  <h2>Documentos</h2>
+  <table>
+    <tr>
+      <th>ID</th>
+      <th>Título</th>
+      <th>Archivo</th>
+      <th>Estado</th>
+      <th>Firmado por</th>
+      <th>Acciones</th>
+    </tr>
+    {% for d in docs %}
+      <tr>
+        <td>{{ d.id }}</td>
+        <td>{{ d.title }}</td>
+        <td>
+          {% if d.filename %}
+            <a href="/legal/documents/{{ d.id }}/file" target="_blank">
+              📄 {{ d.filename }}
+            </a>
+          {% else %}
+            —
+          {% endif %}
+        </td>
+        <td>{{ d.status }}</td>
+        <td>
+          {% if signatures_map[d.id] %}
+            {{ ", ".join(signatures_map[d.id]) }}
+          {% else %}
+            Nadie todavía
+          {% endif %}
+        </td>
+        <td>
+          <form method="post"
+                action="/legal/documents/{{ d.id }}/sign"
+                style="display:inline;"
+                onsubmit="return confirm('¿Firmar el documento &quot;{{ d.title }}&quot;?');">
+            <button type="submit">Firmar</button>
+          </form>
+          <form method="post"
+                action="/legal/documents/{{ d.id }}/delete"
+                style="display:inline;"
+                onsubmit="return confirm('¿Eliminar este documento?');">
+            <button type="submit">Borrar</button>
+          </form>
+        </td>
+      </tr>
+    {% endfor %}
+    {% if not docs %}
+      <tr>
+        <td colspan="6">No hay documentos todavía. Crea uno arriba.</td>
+      </tr>
+    {% endif %}
+  </table>
+</section>
+{% endblock %}

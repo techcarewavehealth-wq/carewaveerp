@@ -1,0 +1,350 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>Contabilidad &amp; Finanzas</h1>
+<button onclick="window.print()" style="float:right;"Imprimir</button>
+
+<p>Aquí puedes gestionar el plan contable, registrar asientos, controlar presupuesto y ver todos los estados financieros.</p>
+
+<!-- ================== Presupuesto & Control de gastos ================== -->
+<section style="margin-top:1.5rem;">
+  <h2>Presupuesto &amp; control de gastos</h2>
+  <form method="post" action="/accounting/budgets/create">
+    <div>
+      <label>Nombre del presupuesto</label>
+      <input type="text" name="name" placeholder="Presupuesto anual 2025" required>
+    </div>
+    <div style="margin-top:0.5rem;">
+      <label>Año</label>
+      <input type="number" name="year" value="2025" required>
+    </div>
+    <div style="margin-top:0.5rem;">
+      <label>Mes (opcional, 1-12)</label>
+      <input type="number" name="month" min="1" max="12">
+    </div>
+    <div style="margin-top:0.5rem;">
+      <label>Gasto presupuestado (€)</label>
+      <input type="number" step="0.01" name="expense_target" required>
+    </div>
+    <button type="submit" style="margin-top:0.8rem;">Crear presupuesto</button>
+  </form>
+
+  <h3 style="margin-top:1rem;">Presupuestos existentes</h3>
+  <table>
+    <tr>
+      <th>Nombre</th>
+      <th>Año</th>
+      <th>Mes</th>
+      <th>Gasto presupuestado</th>
+      <th>Gasto real</th>
+      <th>Diferencia</th>
+      <th>Acciones</th>
+    </tr>
+    {% for row in budgets_info %}
+      <tr>
+        <td>{{ row.budget.name }}</td>
+        <td>{{ row.budget.year }}</td>
+        <td>{% if row.budget.month %}{{ row.budget.month }}{% else %}Anual{% endif %}</td>
+        <td>{{ '%.2f'|format(row.budget.expense_target or 0) }}</td>
+        <td>{{ '%.2f'|format(row.actual_expense or 0) }}</td>
+        <td>{{ '%.2f'|format(row.variance or 0) }}</td>
+        <td>
+          <form method="post"
+                action="/accounting/budgets/{{ row.budget.id }}/delete"
+                onsubmit="return confirm('¿Eliminar este presupuesto?');">
+            <button type="submit">Borrar</button>
+          </form>
+        </td>
+      </tr>
+    {% endfor %}
+    {% if not budgets_info %}
+      <tr><td colspan="7">Todavía no hay presupuestos.</td></tr>
+    {% endif %}
+  </table>
+</section>
+
+<!-- ================== Inversores ================== -->
+<section style="margin-top:1.5rem;">
+  <h2>Inversores</h2>
+  <form method="post" action="/accounting/investors/create">
+    <div>
+      <label>Nombre del inversor</label>
+      <input type="text" name="name" required>
+    </div>
+    <div style="margin-top:0.5rem;">
+      <label>% Participación</label>
+      <input type="number" step="0.01" name="ownership_percent" required>
+    </div>
+    <div style="margin-top:0.5rem;">
+      <label>Importe invertido (€)</label>
+      <input type="number" step="0.01" name="invested_amount" required>
+    </div>
+    <div style="margin-top:0.5rem;">
+      <label>Notas (opcional)</label>
+      <input type="text" name="notes">
+    </div>
+    <button type="submit" style="margin-top:0.8rem;">Añadir inversor</button>
+  </form>
+
+  <h3 style="margin-top:1rem;">Resumen de inversores</h3>
+  <p>Total invertido: <strong>{{ '%.2f'|format(total_invested or 0) }} €</strong> |
+     % total declarado: <strong>{{ '%.2f'|format(total_ownership or 0) }} %</strong>
+  </p>
+
+  <table style="margin-top:0.5rem;">
+    <tr>
+      <th>Nombre</th>
+      <th>% Participación</th>
+      <th>Invertido (€)</th>
+      <th>Valoración implícita (€)</th>
+      <th>Notas</th>
+      <th>Acciones</th>
+    </tr>
+    {% for row in investors_info %}
+      <tr>
+        <td>{{ row.investor.name }}</td>
+        <td>{{ '%.2f'|format(row.investor.ownership_percent or 0) }}</td>
+        <td>{{ '%.2f'|format(row.investor.invested_amount or 0) }}</td>
+        <td>
+          {% if row.implied_valuation %}
+            {{ '%.2f'|format(row.implied_valuation or 0) }}
+          {% else %}
+            —
+          {% endif %}
+        </td>
+        <td>{{ row.investor.notes or '' }}</td>
+        <td>
+          <form method="post"
+                action="/accounting/investors/{{ row.investor.id }}/delete"
+                onsubmit="return confirm('¿Eliminar este inversor?');">
+            <button type="submit">Borrar</button>
+          </form>
+        </td>
+      </tr>
+    {% endfor %}
+    {% if not investors_info %}
+      <tr><td colspan="6">Todavía no hay inversores registrados.</td></tr>
+    {% endif %}
+  </table>
+</section>
+
+<!-- ================== Plan contable ================== -->
+<section style="margin-top:1.5rem;">
+  <h2>Plan contable - Crear cuenta</h2>
+  <form method="post" action="/accounting/accounts/create">
+    <div>
+      <label>Código</label>
+      <input type="text" name="code" placeholder="5700" required>
+    </div>
+    <div style="margin-top:0.5rem;">
+      <label>Nombre</label>
+      <input type="text" name="name" placeholder="Caja" required>
+    </div>
+    <div style="margin-top:0.5rem;">
+      <label>Tipo</label>
+      <select name="type" required>
+        {% for value, label in account_types %}
+          <option value="{{ value }}">{{ label }}</option>
+        {% endfor %}
+      </select>
+    </div>
+    <div style="margin-top:0.5rem;">
+      <label>Esquema país</label>
+      <select name="scheme">
+        <option value="ES">España (PGC)</option>
+        <option value="US">EE.UU. (US GAAP)</option>
+      </select>
+    </div>
+    <div style="margin-top:0.5rem;">
+      <label><input type="checkbox" name="is_cash"> Es cuenta de caja/banco (para flujos de efectivo y cash)</label><br>
+      <label><input type="checkbox" name="is_equity"> Es cuenta de patrimonio neto</label>
+    </div>
+    <button type="submit" style="margin-top:0.8rem;">Crear cuenta</button>
+  </form>
+
+  <h3 style="margin-top:1rem;">Listado de cuentas</h3>
+  <table>
+    <tr>
+      <th>Código</th>
+      <th>Nombre</th>
+      <th>Tipo</th>
+      <th>Esquema</th>
+      <th>Caja/Banco</th>
+      <th>Patrimonio neto</th>
+      <th>Acciones</th>
+    </tr>
+    {% for acc in accounts %}
+      <tr>
+        <td>{{ acc.code }}</td>
+        <td>{{ acc.name }}</td>
+        <td>{{ acc.type }}</td>
+        <td>{{ acc.country_scheme }}</td>
+        <td>{% if acc.is_cash %}Sí{% else %}No{% endif %}</td>
+        <td>{% if acc.is_equity %}Sí{% else %}No{% endif %}</td>
+        <td>
+          <form method="post"
+                action="/accounting/accounts/{{ acc.id }}/delete"
+                onsubmit="return confirm('¿Eliminar la cuenta {{ acc.code }}? Solo si no tiene movimientos.');">
+            <button type="submit">Borrar</button>
+          </form>
+        </td>
+      </tr>
+    {% endfor %}
+    {% if not accounts %}
+      <tr><td colspan="7">Todavía no hay cuentas creadas.</td></tr>
+    {% endif %}
+  </table>
+</section>
+
+<!-- ================== Nuevo asiento (Libro diario) ================== -->
+<section style="margin-top:1.5rem;">
+  <h2>Nuevo asiento (simple)</h2>
+  <form method="post" action="/accounting/journal/create">
+    <div>
+      <label>Fecha</label>
+      <input type="date" name="date_str" required>
+    </div>
+    <div style="margin-top:0.5rem;">
+      <label>Descripción</label>
+      <input type="text" name="description" placeholder="Pago factura, nómina, etc." required>
+    </div>
+    <div style="margin-top:0.5rem;">
+      <strong>Debe</strong><br>
+      <label>Cuenta</label>
+      <select name="debit_account_id" required>
+        {% for acc in accounts %}
+          <option value="{{ acc.id }}">{{ acc.code }} - {{ acc.name }}</option>
+        {% endfor %}
+      </select>
+      <label>Importe</label>
+      <input type="number" step="0.01" name="debit_amount" required>
+    </div>
+    <div style="margin-top:0.5rem;">
+      <strong>Haber</strong><br>
+      <label>Cuenta</label>
+      <select name="credit_account_id" required>
+        {% for acc in accounts %}
+          <option value="{{ acc.id }}">{{ acc.code }} - {{ acc.name }}</option>
+        {% endfor %}
+      </select>
+      <label>Importe</label>
+      <input type="number" step="0.01" name="credit_amount" required>
+    </div>
+    <button type="submit" style="margin-top:0.8rem;">Registrar asiento</button>
+  </form>
+</section>
+
+<!-- ================== Libro mayor ================== -->
+<section style="margin-top:1.5rem;">
+  <h2>Libro mayor</h2>
+  <form method="get" action="/accounting/ui">
+    <label>Cuenta</label>
+    <select name="account_id" onchange="this.form.submit()">
+      <option value="">-- Selecciona una cuenta --</option>
+      {% for acc in accounts %}
+        <option value="{{ acc.id }}" {% if selected_account_id == acc.id %}selected{% endif %}>
+          {{ acc.code }} - {{ acc.name }}
+        </option>
+      {% endfor %}
+    </select>
+    <noscript><button type="submit">Ver</button></noscript>
+  </form>
+
+  {% if ledger_account %}
+    <p style="margin-top:0.5rem;"><strong>Cuenta:</strong> {{ ledger_account.code }} - {{ ledger_account.name }}</p>
+    <table style="margin-top:0.5rem;">
+      <tr>
+        <th>Fecha</th>
+        <th>Descripción</th>
+        <th>Debe</th>
+        <th>Haber</th>
+        <th>Saldo</th>
+      </tr>
+      {% for l in ledger_lines %}
+        <tr>
+          <td>{{ l.date }}</td>
+          <td>{{ l.description }}</td>
+          <td>{{ '%.2f'|format(l.debit or 0) }}</td>
+          <td>{{ '%.2f'|format(l.credit or 0) }}</td>
+          <td>{{ '%.2f'|format(l.balance or 0) }}</td>
+        </tr>
+      {% endfor %}
+      {% if not ledger_lines %}
+        <tr><td colspan="5">No hay movimientos en esta cuenta.</td></tr>
+      {% endif %}
+    </table>
+  {% endif %}
+</section>
+
+<!-- ================== Balance contable (sumas y saldos) ================== -->
+<section style="margin-top:1.5rem;">
+  <h2>Balance contable (sumas y saldos por cuenta)</h2>
+  <table>
+    <tr>
+      <th>Código</th>
+      <th>Nombre</th>
+      <th>Total Debe</th>
+      <th>Total Haber</th>
+      <th>Saldo (Debe - Haber)</th>
+    </tr>
+    {% for row in balance_rows %}
+      <tr>
+        <td>{{ row.account.code }}</td>
+        <td>{{ row.account.name }}</td>
+        <td>{{ '%.2f'|format(row.debit_total or 0) }}</td>
+        <td>{{ '%.2f'|format(row.credit_total or 0) }}</td>
+        <td>{{ '%.2f'|format(row.saldo or 0) }}</td>
+      </tr>
+    {% endfor %}
+    {% if not balance_rows %}
+      <tr><td colspan="5">Todavía no hay movimientos contables.</td></tr>
+    {% endif %}
+  </table>
+</section>
+
+<!-- ================== Estados financieros (memoria financiera) ================== -->
+<section style="margin-top:1.5rem;">
+  <h2>Estados financieros</h2>
+
+  <h3>Cuenta de Pérdidas y Ganancias</h3>
+  <p>Ingresos totales: <strong>{{ '%.2f'|format(total_income or 0) }} €</strong></p>
+  <p>Gastos totales: <strong>{{ '%.2f'|format(total_expense or 0) }} €</strong></p>
+  <p>Resultado del ejercicio: <strong>{{ '%.2f'|format(net_income or 0) }} €</strong></p>
+
+  <h3 style="margin-top:1rem;">Balance de situación</h3>
+  <p>Activo total: <strong>{{ '%.2f'|format(assets_total or 0) }} €</strong></p>
+  <p>Pasivo total: <strong>{{ '%.2f'|format(liabilities_total or 0) }} €</strong></p>
+  <p>Patrimonio neto total: <strong>{{ '%.2f'|format(equity_total or 0) }} €</strong></p>
+
+  <h3 style="margin-top:1rem;">Estado de flujos de efectivo (simplificado)</h3>
+  <p>Caja y bancos (saldo actual en cuentas marcadas como caja/banco): <strong>{{ '%.2f'|format(cash_balance or 0) }} €</strong></p>
+
+  <h3 style="margin-top:1rem;">Estado de cambios en el patrimonio neto</h3>
+  <table>
+    <tr>
+      <th>Cuenta de patrimonio</th>
+      <th>Saldo</th>
+    </tr>
+    {% for name, saldo in equity_breakdown.items() %}
+      <tr>
+        <td>{{ name }}</td>
+        <td>{{ '%.2f'|format(saldo or 0) }}</td>
+      </tr>
+    {% endfor %}
+    {% if not equity_breakdown %}
+      <tr><td colspan="2">No hay movimientos en cuentas de patrimonio neto.</td></tr>
+    {% endif %}
+  </table>
+
+  <h3 style="margin-top:1rem;">Burn rate &amp; runway</h3>
+  <p>Burn rate medio mensual (gasto): <strong>{{ '%.2f'|format(burn_rate or 0) }} €</strong></p>
+  <p>
+    Runway estimado:
+    {% if runway_months %}
+      <strong>{{ '%.1f'|format(runway_months) }} meses</strong>
+    {% else %}
+      <strong>No calculable (sin gastos o sin caja marcada).</strong>
+    {% endif %}
+  </p>
+</section>
+
+{% endblock %}

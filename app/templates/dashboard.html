@@ -1,0 +1,10 @@
+{% extends "base.html" %}
+{% block content %}
+<h1>Bienvenido, {{ user.full_name }}</h1>
+<p>Este es tu panel principal de CareWave ERP.</p>
+
+<ul>
+  <li><a href="{{ url_for('files_ui') }}">Gestión de archivos</a></li>
+  <li><a href="{{ url_for('legal_ui') }}">Legal & Compliance</a></li>
+</ul>
+{% endblock %}
