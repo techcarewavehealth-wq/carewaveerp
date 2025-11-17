@@ -1,7 +1,15 @@
 {% extends "base.html" %}
 {% block content %}
-<h1>Departamento Tecnológico</h1>
-<button onclick="window.print()" style="float:right;"Imprimir</button>
+
+<h1 style="display:flex; align-items:center; justify-content:space-between;">
+  <span>Departamento Tecnológico</span>
+  <!-- Botón de imprimir solo si haces clic aquí -->
+  <button type="button"
+          onclick="window.print()"
+          style="font-size:0.9rem; padding:0.25rem 0.6rem;">
+    🖨 Imprimir
+  </button>
+</h1>
 
 <p>Aquí gestionas Administración de sistemas, Soporte, Desarrollo, Seguridad e Innovación.</p>
 
@@ -390,4 +398,80 @@
   </table>
 </section>
 
-{% endblock %}
+<!-- ================== Dataset & Code crítico ================== -->
+<section style="margin-top:1.5rem;">
+  <h2>Dataset &amp; Code crítico</h2>
+  <p>Aquí puedes catalogar datasets sensibles, repositorios de código y scripts críticos.</p>
+
+  <form method="post" action="/technology/assets/create">
+    <div>
+      <label>Nombre del activo</label>
+      <input type="text" name="name" placeholder="Dataset pacientes cardiología" required>
+    </div>
+    <div style="margin-top:0.5rem;">
+      <label>Tipo</label>
+      <select name="asset_type">
+        <option value="dataset">Dataset</option>
+        <option value="code">Código / repositorio</option>
+        <option value="script">Script crítico</option>
+        <option value="infra">Infraestructura / pipeline</option>
+      </select>
+    </div>
+    <div style="margin-top:0.5rem;">
+      <label>Clasificación</label>
+      <select name="classification">
+        <option value="baja">Confidencialidad baja</option>
+        <option value="media">Confidencialidad media</option>
+        <option value="alta" selected>Confidencialidad alta</option>
+      </select>
+    </div>
+    <div style="margin-top:0.5rem;">
+      <label>Ubicación técnica</label>
+      <input type="text" name="location" placeholder="Ruta servidor / bucket S3 / carpeta cifrada">
+    </div>
+    <div style="margin-top:0.5rem;">
+      <label>Repositorio / enlace</label>
+      <input type="text" name="repo_url" placeholder="URL Git, carpeta compartida, etc.">
+    </div>
+    <div style="margin-top:0.5rem;">
+      <label>Notas</label>
+      <input type="text" name="notes" placeholder="Clave de cifrado en gestor de contraseñas, uso permitido, etc.">
+    </div>
+    <button type="submit" style="margin-top:0.8rem;">Registrar activo</button>
+  </form>
+
+  <h3 style="margin-top:1rem;">Activos registrados</h3>
+  <table>
+    <tr>
+      <th>Nombre</th>
+      <th>Tipo</th>
+      <th>Clasificación</th>
+      <th>Ubicación</th>
+      <th>Repositorio / enlace</th>
+      <th>Notas</th>
+      <th>Acciones</th>
+    </tr>
+    {% for a in assets %}
+      <tr>
+        <td>{{ a.name }}</td>
+        <td>{{ a.asset_type }}</td>
+        <td>{{ a.classification }}</td>
+        <td>{{ a.location or '' }}</td>
+        <td>{{ a.repo_url or '' }}</td>
+        <td>{{ a.notes or '' }}</td>
+        <td>
+          <form method="post"
+                action="/technology/assets/{{ a.id }}/delete"
+                onsubmit="return confirm('¿Eliminar este activo crítico?');">
+            <button type="submit">Borrar</button>
+          </form>
+        </td>
+      </tr>
+    {% endfor %}
+    {% if not assets %}
+      <tr><td colspan="7">No hay activos registrados todavía.</td></tr>
+    {% endif %}
+  </table>
+</section>
+
+{% endblock %} 
