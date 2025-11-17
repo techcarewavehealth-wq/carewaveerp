@@ -1,31 +1,28 @@
 # app/routers/files.py
+from datetime import datetime
 from pathlib import Path
 
 from fastapi import (
     APIRouter,
-    Request,
-    UploadFile,
-    File as FastFile,
     Depends,
     Form,
+    Request,
+    UploadFile,
+    File as FastAPIFile,   # 👈 helper de FastAPI para subir archivos
 )
-from fastapi.templating import Jinja2Templates
 from fastapi.responses import RedirectResponse
+from fastapi.templating import Jinja2Templates
 from sqlalchemy.orm import Session
 
 from app.db import get_db
-from app.models.files import File as FileModel
+from app.models.files import File as StoredFile          # 👈 modelo de BD
 from app.models.docs import DepartmentDocument
 from app.security import get_current_user
 
+router = APIRouter(prefix="/files", tags=["Archivos & Docs"])
 templates = Jinja2Templates(directory="app/templates")
 
-UPLOAD_DIR = Path("storage")
-UPLOAD_DIR.mkdir(exist_ok=True)
-
-router = APIRouter(prefix="/files", tags=["Files"])
-
-# Lista fija de departamentos internos
+# 🟢 LISTA DE DEPARTAMENTOS (incluye Producto tecnológico / Marketing)
 DEPARTMENTS = [
     ("general", "General"),
     ("contabilidad", "Contabilidad"),
@@ -33,65 +30,90 @@ DEPARTMENTS = [
     ("legal", "Legal"),
     ("talento_humano", "Talento Humano"),
     ("tecnologia", "Tecnología"),
-    ("reuniones_estrategia", "Reuniones y Estrategias"),  # NUEVO
+    ("reuniones_estrategia", "Reuniones y Estrategias"),
+    ("producto_marketing", "Producto tecnológico / Marketing"),
 ]
+
+STORAGE_ROOT = Path("storage")
+STORAGE_ROOT.mkdir(parents=True, exist_ok=True)
 
 
 @router.get("/ui", name="files_ui")
 def files_ui(
     request: Request,
-    department: str = "general",  # filtro actual (?department=...)
+    department: str = "general",
     db: Session = Depends(get_db),
     current_user=Depends(get_current_user),
 ):
-    q = db.query(FileModel)
-    if department and department != "todos":
-        q = q.filter(FileModel.department == department)
+    # Normalizamos departamento: si viene uno raro, forzamos a general
+    valid_departments = {d[0] for d in DEPARTMENTS}
+    if department not in valid_departments:
+        department = "general"
 
-    files = q.order_by(FileModel.uploaded_at.desc()).all()
+    # Archivos subidos (ficheros físicos)
+    files_q = (
+        db.query(StoredFile)
+        .filter(StoredFile.department == department)
+        .order_by(StoredFile.uploaded_at.desc())
+    )
+    files = files_q.all()
 
-    docs = (
+    # Documentos internos (CareWave Docs)
+    docs_q = (
         db.query(DepartmentDocument)
         .filter(DepartmentDocument.department == department)
         .order_by(DepartmentDocument.created_at.desc())
-        .all()
     )
+    docs = docs_q.all()
 
     return templates.TemplateResponse(
         "files.html",
         {
             "request": request,
             "user": current_user,
-            "files": files,
-            "documents": docs,
             "departments": DEPARTMENTS,
             "selected_department": department,
+            "files": files,
+            "docs": docs,
         },
     )
 
 
-@router.post("/upload", name="files_upload")
-async def files_upload(
+# ============== SUBIDA DE ARCHIVOS ==============
+
+@router.post("/upload")
+async def upload_file(
     request: Request,
-    department: str = Form("general"),
-    upfile: UploadFile = FastFile(...),
+    department: str = Form(...),
+    uploaded_file: UploadFile = FastAPIFile(...),   # 👈 aquí estaba el error
     db: Session = Depends(get_db),
     current_user=Depends(get_current_user),
 ):
-    dept_dir = UPLOAD_DIR / department
+    if not uploaded_file.filename:
+        return RedirectResponse(
+            url=f"/files/ui?department={department}", status_code=303
+        )
+
+    # Carpeta por departamento
+    dept_dir = STORAGE_ROOT / department
     dept_dir.mkdir(parents=True, exist_ok=True)
-    dst = dept_dir / upfile.filename
 
-    with dst.open("wb") as f:
-        f.write(await upfile.read())
+    stored_name = f"{datetime.utcnow().strftime('%Y%m%d%H%M%S')}_{uploaded_file.filename}"
+    stored_path = dept_dir / stored_name
 
-    rec = FileModel(
-        filename=upfile.filename,
+    # Guardamos el archivo físicamente
+    with stored_path.open("wb") as f:
+        content = await uploaded_file.read()
+        f.write(content)
+
+    # Guardamos metadatos en BD
+    db_file = StoredFile(
+        filename=uploaded_file.filename,
         department=department,
-        stored_path=str(dst),
+        stored_path=str(stored_path),
         uploaded_by=current_user,
     )
-    db.add(rec)
+    db.add(db_file)
     db.commit()
 
     return RedirectResponse(
@@ -99,36 +121,41 @@ async def files_upload(
     )
 
 
-@router.post("/{file_id}/delete", name="files_delete")
-def files_delete(
+# ============== BORRADO DE ARCHIVOS ==============
+
+@router.post("/files/{file_id}/delete")
+def delete_file(
     file_id: int,
     request: Request,
     db: Session = Depends(get_db),
     current_user=Depends(get_current_user),
 ):
-    department = request.query_params.get("department", "general")
+    f = db.query(StoredFile).get(file_id)
+    if not f:
+        return RedirectResponse(url="/files/ui", status_code=303)
 
-    f = db.query(FileModel).get(file_id)
-    if f:
-        try:
-            p = Path(f.stored_path)
-            if p.exists():
-                p.unlink()
-        except Exception:
-            pass
+    # Intentamos borrar el archivo físico
+    try:
+        p = Path(f.stored_path)
+        if p.exists():
+            p.unlink()
+    except Exception:
+        # Si falla el borrado físico no tiramos la app
+        pass
 
-        db.delete(f)
-        db.commit()
+    department = f.department or "general"
+    db.delete(f)
+    db.commit()
 
     return RedirectResponse(
         url=f"/files/ui?department={department}", status_code=303
     )
 
 
-# ================== Documentos internos (CareWave Docs) ==================
+# ============== DOCUMENTOS INTERNOS (CareWave Docs) ==============
 
-@router.post("/docs/create", name="files_docs_create")
-def files_docs_create(
+@router.post("/docs/create")
+def create_doc(
     request: Request,
     department: str = Form(...),
     title: str = Form(...),
@@ -137,8 +164,7 @@ def files_docs_create(
     current_user=Depends(get_current_user),
 ):
     title = title.strip()
-    content = content.strip()
-    if not title or not content:
+    if not title:
         return RedirectResponse(
             url=f"/files/ui?department={department}", status_code=303
         )
@@ -157,8 +183,8 @@ def files_docs_create(
     )
 
 
-@router.get("/docs/{doc_id}", name="files_docs_view")
-def files_docs_view(
+@router.post("/docs/{doc_id}/delete")
+def delete_doc(
     doc_id: int,
     request: Request,
     db: Session = Depends(get_db),
@@ -168,25 +194,9 @@ def files_docs_view(
     if not doc:
         return RedirectResponse(url="/files/ui", status_code=303)
 
-    return templates.TemplateResponse(
-        "doc_view.html",
-        {"request": request, "user": current_user, "doc": doc},
-    )
-
-
-@router.post("/docs/{doc_id}/delete", name="files_docs_delete")
-def files_docs_delete(
-    doc_id: int,
-    request: Request,
-    db: Session = Depends(get_db),
-    current_user=Depends(get_current_user),
-):
-    department = request.query_params.get("department", "general")
-
-    doc = db.query(DepartmentDocument).get(doc_id)
-    if doc:
-        db.delete(doc)
-        db.commit()
+    department = doc.department or "general"
+    db.delete(doc)
+    db.commit()
 
     return RedirectResponse(
         url=f"/files/ui?department={department}", status_code=303
