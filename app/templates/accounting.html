@@ -1,9 +1,20 @@
 {% extends "base.html" %}
 {% block content %}
-<h1>Contabilidad &amp; Finanzas</h1>
-<button onclick="window.print()" style="float:right;"Imprimir</button>
 
-<p>Aquí puedes gestionar el plan contable, registrar asientos, controlar presupuesto y ver todos los estados financieros.</p>
+<h1 style="display:flex; align-items:center; justify-content:space-between;">
+  <span>Contabilidad &amp; Finanzas</span>
+  <!-- Botón de imprimir SOLO cuando se hace clic aquí -->
+  <button type="button"
+          onclick="window.print()"
+          style="font-size:0.9rem; padding:0.25rem 0.6rem;">
+    🖨 Imprimir
+  </button>
+</h1>
+
+<p>
+  Aquí puedes gestionar el plan contable, registrar asientos, controlar presupuesto
+  y ver todos los estados financieros.
+</p>
 
 <!-- ================== Presupuesto & Control de gastos ================== -->
 <section style="margin-top:1.5rem;">
@@ -86,8 +97,12 @@
   </form>
 
   <h3 style="margin-top:1rem;">Resumen de inversores</h3>
-  <p>Total invertido: <strong>{{ '%.2f'|format(total_invested or 0) }} €</strong> |
-     % total declarado: <strong>{{ '%.2f'|format(total_ownership or 0) }} %</strong>
+  <p>
+    Total invertido:
+    <strong>{{ '%.2f'|format(total_invested or 0) }} €</strong>
+    |
+    % total declarado:
+    <strong>{{ '%.2f'|format(total_ownership or 0) }} %</strong>
   </p>
 
   <table style="margin-top:0.5rem;">
@@ -250,7 +265,9 @@
   </form>
 
   {% if ledger_account %}
-    <p style="margin-top:0.5rem;"><strong>Cuenta:</strong> {{ ledger_account.code }} - {{ ledger_account.name }}</p>
+    <p style="margin-top:0.5rem;">
+      <strong>Cuenta:</strong> {{ ledger_account.code }} - {{ ledger_account.name }}
+    </p>
     <table style="margin-top:0.5rem;">
       <tr>
         <th>Fecha</th>
@@ -316,7 +333,10 @@
   <p>Patrimonio neto total: <strong>{{ '%.2f'|format(equity_total or 0) }} €</strong></p>
 
   <h3 style="margin-top:1rem;">Estado de flujos de efectivo (simplificado)</h3>
-  <p>Caja y bancos (saldo actual en cuentas marcadas como caja/banco): <strong>{{ '%.2f'|format(cash_balance or 0) }} €</strong></p>
+  <p>
+    Caja y bancos (saldo actual en cuentas marcadas como caja/banco):
+    <strong>{{ '%.2f'|format(cash_balance or 0) }} €</strong>
+  </p>
 
   <h3 style="margin-top:1rem;">Estado de cambios en el patrimonio neto</h3>
   <table>
