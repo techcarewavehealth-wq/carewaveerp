@@ -1,5 +1,10 @@
 fastapi
-uvicorn[standard]
-SQLAlchemy
+uvicorn
 jinja2
 python-multipart
+sqlalchemy
+itsdangerous==2.1.2
+pydantic
+python-dotenv
+psycopg2-binary
+
