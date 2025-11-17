@@ -1,75 +1,352 @@
 {% extends "base.html" %}
 {% block content %}
-<h1>Legal &amp; Compliance</h1>
-<button onclick="window.print()" style="float:right;"Imprimir</button>
-<p>Aquí verás documentos legales listos para firmar.</p>
 
-<section style="margin-top:1rem;">
-  <h2>Crear nuevo documento</h2>
-  <form method="post" action="/legal/documents/create" enctype="multipart/form-data">
-    <label>Título del documento</label>
-    <input type="text" name="title" placeholder="Ej: NDA cliente X" required>
+<div style="display:flex; align-items:center; justify-content:space-between;">
+  <h1>Legal &amp; Compliance</h1>
+  <button type="button"
+          onclick="window.print()"
+          style="border:none; background:transparent; cursor:pointer; font-size:0.9rem;">
+    🖨 Imprimir
+  </button>
+</div>
 
-    <label style="display:block;margin-top:0.5rem;">Adjuntar archivo (opcional)</label>
-    <input type="file" name="file">
+<p>
+  Gestión avanzada de documentos legales, RGPD, normativas sanitarias y contratos
+  (incluyendo AI ACT y propiedad intelectual de datasets).
+</p>
 
-    <button type="submit" style="margin-top:0.8rem;">Crear</button>
+<!-- ================== Documentos legales ================== -->
+<section style="margin-top:1.5rem;">
+  <h2>Documentos legales</h2>
+
+  <form method="post"
+        action="/legal/documents/create"
+        enctype="multipart/form-data">
+
+    <div>
+      <label for="title">Título del documento</label>
+      <input id="title"
+             type="text"
+             name="title"
+             placeholder="NDA proveedor X"
+             required>
+    </div>
+
+    <div style="margin-top:0.5rem;">
+      <label for="category">Categoría</label>
+      <select id="category" name="category" required>
+        <!-- opción placeholder para que el desplegable se vea claro -->
+        <option value="" disabled selected>-- Selecciona una categoría --</option>
+        {% for value, label in legal_categories %}
+          <option value="{{ value }}">{{ label }}</option>
+        {% endfor %}
+      </select>
+    </div>
+
+    <div style="margin-top:0.5rem;">
+      <label for="file">Adjuntar archivo (PDF, DOCX, XLSX, etc.)</label>
+      <input id="file" type="file" name="file">
+    </div>
+
+    <button type="submit" style="margin-top:0.8rem;">Crear documento</button>
   </form>
-</section>
 
-<section style="margin-top:2rem;">
-  <h2>Documentos</h2>
+  <h3 style="margin-top:1rem;">Listado de documentos legales</h3>
   <table>
     <tr>
-      <th>ID</th>
       <th>Título</th>
+      <th>Categoría</th>
       <th>Archivo</th>
-      <th>Estado</th>
-      <th>Firmado por</th>
+      <th>Creado por</th>
+      <th>Estado de firma</th>
       <th>Acciones</th>
     </tr>
-    {% for d in docs %}
+    {% for doc in documents %}
       <tr>
-        <td>{{ d.id }}</td>
-        <td>{{ d.title }}</td>
+        <td>{{ doc.title }}</td>
+        <td>{{ doc.category }}</td>
         <td>
-          {% if d.filename %}
-            <a href="/legal/documents/{{ d.id }}/file" target="_blank">
-              📄 {{ d.filename }}
-            </a>
+          {% if doc.file_path %}
+            <a href="/legal/documents/{{ doc.id }}/file" target="_blank">📄 Ver archivo</a>
           {% else %}
             —
           {% endif %}
         </td>
-        <td>{{ d.status }}</td>
+        <td>{{ doc.created_by }} ({{ doc.created_at }})</td>
         <td>
-          {% if signatures_map[d.id] %}
-            {{ ", ".join(signatures_map[d.id]) }}
+          {% if doc.is_signed %}
+            ✅ Firmado por {{ doc.signed_by }} el {{ doc.signed_at }}
           {% else %}
-            Nadie todavía
+            ❌ Pendiente
           {% endif %}
         </td>
         <td>
+          {% if not doc.is_signed %}
+            <form method="post"
+                  action="/legal/documents/{{ doc.id }}/sign"
+                  style="display:inline;">
+              <button type="submit">Firmar</button>
+            </form>
+          {% endif %}
           <form method="post"
-                action="/legal/documents/{{ d.id }}/sign"
+                action="/legal/documents/{{ doc.id }}/delete"
                 style="display:inline;"
-                onsubmit="return confirm('¿Firmar el documento &quot;{{ d.title }}&quot;?');">
-            <button type="submit">Firmar</button>
-          </form>
-          <form method="post"
-                action="/legal/documents/{{ d.id }}/delete"
-                style="display:inline;"
-                onsubmit="return confirm('¿Eliminar este documento?');">
+                onsubmit="return confirm('¿Eliminar este documento legal?');">
             <button type="submit">Borrar</button>
           </form>
         </td>
       </tr>
     {% endfor %}
-    {% if not docs %}
-      <tr>
-        <td colspan="6">No hay documentos todavía. Crea uno arriba.</td>
-      </tr>
+    {% if not documents %}
+      <tr><td colspan="6">Todavía no hay documentos legales registrados.</td></tr>
     {% endif %}
   </table>
 </section>
+
+<!-- ================== RGPD: RAT (Registro de actividades) ================== -->
+<section style="margin-top:1.5rem;">
+  <h2>RGPD – Registro de actividades de tratamiento (RAT)</h2>
+
+  <form method="post" action="/legal/rgpd/rat/create">
+    <div>
+      <label>Actividad de tratamiento</label>
+      <input type="text" name="activity_name" placeholder="Gestión de pacientes, nóminas, etc." required>
+    </div>
+    <div style="margin-top:0.5rem;">
+      <label>Responsable</label>
+      <input type="text" name="responsible" placeholder="DPD, Responsable, etc." required>
+    </div>
+    <div style="margin-top:0.5rem;">
+      <label>Descripción</label>
+      <input type="text" name="description">
+    </div>
+    <div style="margin-top:0.5rem;">
+      <label>Nivel de riesgo</label>
+      <select name="risk_level" required>
+        <option value="bajo">Bajo</option>
+        <option value="medio">Medio</option>
+        <option value="alto">Alto</option>
+      </select>
+    </div>
+    <button type="submit" style="margin-top:0.8rem;">Añadir actividad RAT</button>
+  </form>
+
+  <h3 style="margin-top:1rem;">Actividades registradas</h3>
+  <table>
+    <tr>
+      <th>Actividad</th>
+      <th>Responsable</th>
+      <th>Descripción</th>
+      <th>Riesgo</th>
+      <th>Creado por</th>
+      <th>Acciones</th>
+    </tr>
+    {% for r in rgpd_records %}
+      <tr>
+        <td>{{ r.activity_name }}</td>
+        <td>{{ r.responsible }}</td>
+        <td>{{ r.description or '' }}</td>
+        <td>{{ r.risk_level }}</td>
+        <td>{{ r.created_by }} ({{ r.created_at }})</td>
+        <td>
+          <form method="post"
+                action="/legal/rgpd/rat/{{ r.id }}/delete"
+                onsubmit="return confirm('¿Eliminar este registro RAT?');">
+            <button type="submit">Borrar</button>
+          </form>
+        </td>
+      </tr>
+    {% endfor %}
+    {% if not rgpd_records %}
+      <tr><td colspan="6">Todavía no hay actividades registradas.</td></tr>
+    {% endif %}
+  </table>
+</section>
+
+<!-- ================== RGPD: Análisis de riesgos ================== -->
+<section style="margin-top:1.5rem;">
+  <h2>RGPD – Análisis de riesgos</h2>
+
+  <form method="post" action="/legal/rgpd/risk/create">
+    <div>
+      <label>Título del análisis</label>
+      <input type="text" name="title" placeholder="Riesgos en tratamiento de datos de salud" required>
+    </div>
+    <div style="margin-top:0.5rem;">
+      <label>Riesgo identificado</label>
+      <input type="text" name="risk" required>
+    </div>
+    <div style="margin-top:0.5rem;">
+      <label>Medidas de mitigación</label>
+      <input type="text" name="mitigation" required>
+    </div>
+    <button type="submit" style="margin-top:0.8rem;">Añadir análisis</button>
+  </form>
+
+  <h3 style="margin-top:1rem;">Análisis de riesgos registrados</h3>
+  <table>
+    <tr>
+      <th>Título</th>
+      <th>Riesgo</th>
+      <th>Mitigación</th>
+      <th>Creado por</th>
+      <th>Acciones</th>
+    </tr>
+    {% for ra in risk_analyses %}
+      <tr>
+        <td>{{ ra.title }}</td>
+        <td>{{ ra.risk }}</td>
+        <td>{{ ra.mitigation }}</td>
+        <td>{{ ra.created_by }} ({{ ra.created_at }})</td>
+        <td>
+          <form method="post"
+                action="/legal/rgpd/risk/{{ ra.id }}/delete"
+                onsubmit="return confirm('¿Eliminar este análisis de riesgos?');">
+            <button type="submit">Borrar</button>
+          </form>
+        </td>
+      </tr>
+    {% endfor %}
+    {% if not risk_analyses %}
+      <tr><td colspan="5">Todavía no hay análisis de riesgos registrados.</td></tr>
+    {% endif %}
+  </table>
+</section>
+
+<!-- ================== Normativas sanitarias UE / EEUU ================== -->
+<section style="margin-top:1.5rem;">
+  <h2>Normativas sanitarias (UE / EEUU)</h2>
+
+  <form method="post" action="/legal/health/create" enctype="multipart/form-data">
+    <div>
+      <label>Región</label>
+      <select name="region" required>
+        <option value="UE">UE</option>
+        <option value="US">EEUU</option>
+      </select>
+    </div>
+    <div style="margin-top:0.5rem;">
+      <label>Título</label>
+      <input type="text" name="title" placeholder="Norma sanitaria X" required>
+    </div>
+    <div style="margin-top:0.5rem;">
+      <label>Descripción</label>
+      <input type="text" name="description">
+    </div>
+    <div style="margin-top:0.5rem;">
+      <label>Documento asociado (opcional)</label>
+      <input type="file" name="file">
+    </div>
+    <button type="submit" style="margin-top:0.8rem;">Añadir normativa</button>
+  </form>
+
+  <h3 style="margin-top:1rem;">Normativas registradas</h3>
+  <table>
+    <tr>
+      <th>Región</th>
+      <th>Título</th>
+      <th>Descripción</th>
+      <th>Documento</th>
+      <th>Creado por</th>
+      <th>Acciones</th>
+    </tr>
+    {% for n in health_norms %}
+      <tr>
+        <td>{{ n.region }}</td>
+        <td>{{ n.title }}</td>
+        <td>{{ n.description or '' }}</td>
+        <td>
+          {% if n.file_path %}
+            <a href="{{ '/' + n.file_path }}" target="_blank">Ver</a>
+          {% else %}
+            —
+          {% endif %}
+        </td>
+        <td>{{ n.created_by }} ({{ n.created_at }})</td>
+        <td>
+          <form method="post"
+                action="/legal/health/{{ n.id }}/delete"
+                onsubmit="return confirm('¿Eliminar esta normativa?');">
+            <button type="submit">Borrar</button>
+          </form>
+        </td>
+      </tr>
+    {% endfor %}
+    {% if not health_norms %}
+      <tr><td colspan="6">Todavía no hay normativas sanitarias registradas.</td></tr>
+    {% endif %}
+  </table>
+</section>
+
+<!-- ================== Contratos CareWave Health ================== -->
+<section style="margin-top:1.5rem;">
+  <h2>Contratos CareWave Health</h2>
+
+  <form method="post" action="/legal/carewave/create" enctype="multipart/form-data">
+    <div>
+      <label>Título del contrato</label>
+      <input type="text" name="title" placeholder="Contrato proveedor Y" required>
+    </div>
+    <div style="margin-top:0.5rem;">
+      <label>Documento de contrato</label>
+      <input type="file" name="file">
+    </div>
+    <button type="submit" style="margin-top:0.8rem;">Crear contrato CareWave</button>
+  </form>
+
+  <h3 style="margin-top:1rem;">Contratos registrados</h3>
+  <table>
+    <tr>
+      <th>Título</th>
+      <th>Documento</th>
+      <th>Firmas</th>
+      <th>Acciones</th>
+    </tr>
+    {% for c in carewave_contracts %}
+      <tr>
+        <td>{{ c.title }}</td>
+        <td>
+          {% if c.file_path %}
+            <a href="{{ '/' + c.file_path }}" target="_blank">Ver contrato</a>
+          {% else %}
+            —
+          {% endif %}
+        </td>
+        <td>
+          Empresa:
+          {% if c.signed_by_company %}✅{% else %}❌{% endif %}
+          &nbsp;|&nbsp;
+          Partner:
+          {% if c.signed_by_partner %}✅{% else %}❌{% endif %}
+        </td>
+        <td>
+          {% if not c.signed_by_company %}
+            <form method="post"
+                  action="/legal/carewave/{{ c.id }}/sign/company"
+                  style="display:inline;">
+              <button type="submit">Firma empresa</button>
+            </form>
+          {% endif %}
+          {% if not c.signed_by_partner %}
+            <form method="post"
+                  action="/legal/carewave/{{ c.id }}/sign/partner"
+                  style="display:inline;">
+              <button type="submit">Firma partner</button>
+            </form>
+          {% endif %}
+          <form method="post"
+                action="/legal/carewave/{{ c.id }}/delete"
+                style="display:inline;"
+                onsubmit="return confirm('¿Eliminar este contrato?');">
+            <button type="submit">Borrar</button>
+          </form>
+        </td>
+      </tr>
+    {% endfor %}
+    {% if not carewave_contracts %}
+      <tr><td colspan="4">Todavía no hay contratos CareWave registrados.</td></tr>
+    {% endif %}
+  </table>
+</section>
+
 {% endblock %}
