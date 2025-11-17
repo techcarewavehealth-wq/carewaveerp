@@ -1,50 +1,57 @@
 {% extends "base.html" %}
 {% block content %}
+
 <h1>Archivos y documentos por departamento</h1>
 
-<button onclick="window.print()" style="float:right;">Imprimir</button>
-
-<!-- Filtro por departamento (GET) -->
-<form method="get" action="/files/ui">
-  <label>Departamento:
-    <select name="department" onchange="this.form.submit()">
-      {% for value, label in departments %}
-        <option value="{{ value }}" {% if value == selected_department %}selected{% endif %}>
-          {{ label }}
-        </option>
-      {% endfor %}
-    </select>
-  </label>
-  <noscript><button type="submit">Filtrar</button></noscript>
+<!-- Selección de departamento -->
+<form method="get" action="/files/ui" style="margin-bottom:1rem;">
+  <label>Departamento:</label>
+  <select name="department" onchange="this.form.submit()">
+    {% for value, label in departments %}
+      <option value="{{ value }}"
+              {% if selected_department == value %}selected{% endif %}>
+        {{ label }}
+      </option>
+    {% endfor %}
+  </select>
+  <noscript><button type="submit">Ver</button></noscript>
 </form>
 
-<!-- Subida de archivo, respeta el departamento seleccionado -->
-<form method="post" action="/files/upload" enctype="multipart/form-data" style="margin-top:1rem;">
-  <input type="hidden" name="department" value="{{ selected_department }}">
-  <label>Elegir archivo</label>
-  <input type="file" name="upfile" required>
-  <button type="submit">Subir archivo</button>
-</form>
+<!-- ================== SUBIR ARCHIVO ================== -->
+<section style="margin-bottom:2rem;">
+  <h2>Subir archivo</h2>
+  <form method="post"
+        action="/files/upload"
+        enctype="multipart/form-data">
+    <input type="hidden" name="department" value="{{ selected_department }}">
+    <div>
+      <label>Elegir archivo</label>
+      <input type="file" name="uploaded_file" required>
+      <button type="submit">Subir archivo</button>
+    </div>
+  </form>
+</section>
 
-<!-- Crear documento interno (CareWave Doc) -->
-<section style="margin-top:1.5rem;">
-  <h2>Crear documento interno (CareWave Doc)</h2>
+<!-- ================== CREAR DOCUMENTO INTERNO ================== -->
+<section style="margin-bottom:2rem;">
+  <h2>Crear documento (CareWave Doc)</h2>
   <form method="post" action="/files/docs/create">
     <input type="hidden" name="department" value="{{ selected_department }}">
     <div>
       <label>Título</label>
-      <input type="text" name="title" placeholder="Acta de reunión, protocolo, etc." required>
+      <input type="text" name="title" placeholder="Acta de reunión, checklist, etc." required>
     </div>
     <div style="margin-top:0.5rem;">
       <label>Contenido</label><br>
-      <textarea name="content" rows="6" style="width:100%;" placeholder="Escribe aquí el contenido del documento" required></textarea>
+      <textarea name="content" rows="6" cols="80"
+                placeholder="Escribe aquí el contenido del documento"></textarea>
     </div>
     <button type="submit" style="margin-top:0.8rem;">Guardar documento</button>
   </form>
 </section>
 
-<!-- Listado de archivos físicos -->
-<section style="margin-top:1.5rem;">
+<!-- ================== ARCHIVOS SUBIDOS ================== -->
+<section style="margin-bottom:2rem;">
   <h2>Archivos subidos</h2>
   <table>
     <tr>
@@ -59,18 +66,17 @@
       <tr>
         <td>{{ f.id }}</td>
         <td>{{ f.filename }}</td>
-        <td>
-          {% for value, label in departments %}
-            {% if value == f.department %}
-              {{ label }}
-            {% endif %}
-          {% endfor %}
-        </td>
+        <td>{{ f.department }}</td>
         <td>{{ f.uploaded_by }}</td>
         <td>{{ f.uploaded_at }}</td>
         <td>
+          <!-- enlace de descarga/abrir si sirves los archivos estáticos -->
+          {% if f.stored_path %}
+            <a href="/{{ f.stored_path|replace('\\', '/') }}" target="_blank">Ver</a>
+          {% endif %}
           <form method="post"
-                action="/files/{{ f.id }}/delete?department={{ selected_department }}"
+                action="/files/files/{{ f.id }}/delete"
+                style="display:inline;"
                 onsubmit="return confirm('¿Eliminar este archivo?');">
             <button type="submit">Borrar</button>
           </form>
@@ -83,8 +89,8 @@
   </table>
 </section>
 
-<!-- Listado de documentos internos -->
-<section style="margin-top:1.5rem;">
+<!-- ================== DOCUMENTOS INTERNOS ================== -->
+<section>
   <h2>Documentos internos (CareWave Docs)</h2>
   <table>
     <tr>
@@ -95,23 +101,20 @@
       <th>Fecha</th>
       <th>Acciones</th>
     </tr>
-    {% for d in documents %}
+    {% for d in docs %}
       <tr>
         <td>{{ d.id }}</td>
         <td>{{ d.title }}</td>
-        <td>
-          {% for value, label in departments %}
-            {% if value == d.department %}
-              {{ label }}
-            {% endif %}
-          {% endfor %}
-        </td>
+        <td>{{ d.department }}</td>
         <td>{{ d.created_by }}</td>
         <td>{{ d.created_at }}</td>
         <td>
-          <a href="/files/docs/{{ d.id }}" target="_blank">Ver / Imprimir</a>
+          <details>
+            <summary>Ver contenido</summary>
+            <pre style="white-space:pre-wrap;">{{ d.content }}</pre>
+          </details>
           <form method="post"
-                action="/files/docs/{{ d.id }}/delete?department={{ selected_department }}"
+                action="/files/docs/{{ d.id }}/delete"
                 style="display:inline;"
                 onsubmit="return confirm('¿Eliminar este documento?');">
             <button type="submit">Borrar</button>
@@ -119,9 +122,10 @@
         </td>
       </tr>
     {% endfor %}
-    {% if not documents %}
-      <tr><td colspan="6">No hay documentos internos en este departamento.</td></tr>
+    {% if not docs %}
+      <tr><td colspan="6">Todavía no hay documentos internos en este departamento.</td></tr>
     {% endif %}
   </table>
 </section>
+
 {% endblock %}
