@@ -8,14 +8,15 @@ from fastapi import (
     Form,
     Request,
     UploadFile,
-    File as FastAPIFile,   # 👈 helper de FastAPI para subir archivos
+    File as FastAPIFile,   # helper de FastAPI para subir archivos
+    HTTPException,         # ✅ NUEVO
 )
-from fastapi.responses import RedirectResponse
+from fastapi.responses import RedirectResponse, FileResponse  # ✅ añadimos FileResponse
 from fastapi.templating import Jinja2Templates
 from sqlalchemy.orm import Session
 
 from app.db import get_db
-from app.models.files import File as StoredFile          # 👈 modelo de BD
+from app.models.files import File as StoredFile          # modelo de BD
 from app.models.docs import DepartmentDocument
 from app.security import get_current_user
 
@@ -85,7 +86,7 @@ def files_ui(
 async def upload_file(
     request: Request,
     department: str = Form(...),
-    uploaded_file: UploadFile = FastAPIFile(...),   # 👈 aquí estaba el error
+    uploaded_file: UploadFile = FastAPIFile(...),   # aquí estaba el error y ya está bien
     db: Session = Depends(get_db),
     current_user=Depends(get_current_user),
 ):
@@ -149,6 +150,57 @@ def delete_file(
 
     return RedirectResponse(
         url=f"/files/ui?department={department}", status_code=303
+    )
+
+
+# ============== VER / DESCARGAR ARCHIVO ==============  ✅ NUEVO
+
+@router.get("/files/{file_id}/view")
+def view_file(
+    file_id: int,
+    db: Session = Depends(get_db),
+    current_user=Depends(get_current_user),
+):
+    """
+    Devuelve el archivo subido para verlo o descargarlo.
+    """
+    f = db.query(StoredFile).get(file_id)
+    if not f:
+        raise HTTPException(status_code=404, detail="Archivo no encontrado")
+
+    file_path = Path(f.stored_path)
+
+    # En Render a veces la ruta es relativa, la hacemos absoluta
+    if not file_path.is_absolute():
+        file_path = Path.cwd() / file_path
+
+    if not file_path.exists():
+        raise HTTPException(
+            status_code=404,
+            detail="Archivo no encontrado en el servidor",
+        )
+
+    # Detección simple del tipo MIME
+    suffix = file_path.suffix.lower()
+    if suffix == ".pdf":
+        media_type = "application/pdf"
+    elif suffix in {".png", ".jpg", ".jpeg"}:
+        media_type = "image/" + suffix.lstrip(".")
+    elif suffix in {".doc", ".docx"}:
+        media_type = (
+            "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+        )
+    elif suffix in {".xls", ".xlsx"}:
+        media_type = (
+            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+        )
+    else:
+        media_type = "application/octet-stream"
+
+    return FileResponse(
+        path=str(file_path),
+        filename=file_path.name,
+        media_type=media_type,
     )
 
 
