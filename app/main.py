@@ -1,5 +1,5 @@
 # app/main.py
-from _future_ import annotations
+from __future__ import annotations
 
 import logging
 from pathlib import Path
