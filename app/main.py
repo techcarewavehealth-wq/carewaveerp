@@ -23,7 +23,7 @@ from app.routers.accounting import router as accounting_router
 from app.routers.technology import router as technology_router
 
 
-BASE_DIR = Path(_file_).resolve().parent
+BASE_DIR = Path(__file__).resolve().parent
 
 logging.basicConfig(
     level="INFO",
